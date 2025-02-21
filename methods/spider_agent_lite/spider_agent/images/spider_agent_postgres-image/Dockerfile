@@ -22,10 +22,16 @@ RUN pip install dbt-postgres
 # Set the default command to run when starting the container
 
 
+# COPY init.sh .
+#
+# RUN chmod +x init.sh && ./init.sh
+#
+# RUN rm init.sh
 COPY init.sh .
-
-RUN chmod +x init.sh && ./init.sh
-
+RUN chmod +x init.sh
+RUN sed -i 's/\r//' init.sh
+RUN bash init.sh
 RUN rm init.sh
+
 
 CMD ["/bin/bash"]

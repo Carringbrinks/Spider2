@@ -1,10 +1,10 @@
 
 import argparse
-
-import os
-import json
-import shutil
 import csv
+import json
+import os
+import shutil
+
 
 def copy_folder(src, dest, files_to_copy=None):
     """

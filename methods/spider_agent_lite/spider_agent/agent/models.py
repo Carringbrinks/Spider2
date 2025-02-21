@@ -1,40 +1,33 @@
-import base64
 import json
 import logging
 import os
-import re
 import time
-from http import HTTPStatus
-from io import BytesIO
 
-from openai import AzureOpenAI
-from typing import Dict, List, Optional, Tuple, Any, TypedDict
 import dashscope
-from groq import Groq
-import google.generativeai as genai
-import openai
 import requests
-import tiktoken
-import signal
+from groq import Groq
+from openai import AzureOpenAI
 
 logger = logging.getLogger("api-llms")
 
 
 def call_llm(payload):
     model = payload["model"]
+
     stop = ["Observation:","\n\n\n\n","\n \n \n"]
     if model.startswith("gpt"):
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"
+            # "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"
+            "Authorization": f"Bearer 1"
         }
         logger.info("Generating content with GPT model: %s", model)
-        
 
+        payload["model"]="qwen2.5-72b-instruct"
         for i in range(3):
             try:
                 response = requests.post(
-                            "https://api.openai.com/v1/chat/completions",
+                            "http://127.0.0.1:18000/v1/chat/completions",
                             headers=headers,
                             json=payload
                         )

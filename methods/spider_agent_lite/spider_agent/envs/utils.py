@@ -1,14 +1,12 @@
-import signal
-import os
 import hashlib
-import shutil
-from typing import Dict
-import os
-import pandas as pd
 import json
+import os
+import shutil
+import threading
 import xml.etree.ElementTree as ET
-import yaml
 
+import pandas as pd
+import yaml
 
 TIMEOUT_DURATION = 25
 
@@ -31,20 +29,37 @@ def is_file_valid(file_path):
     except Exception as e:
         return False, str(e)
         
+# class timeout:
+#     def __init__(self, seconds=TIMEOUT_DURATION, error_message="Timeout"):
+#         self.seconds = seconds
+#         self.error_message = error_message
+#
+#     def handle_timeout(self, signum, frame):
+#         raise TimeoutError(self.error_message)
+#
+#     def __enter__(self):
+#         signal.signal(signal.SIGALRM, self.handle_timeout)
+#         signal.alarm(self.seconds)
+#
+#     def __exit__(self, type, value, traceback):
+#         signal.alarm(0)
+
 class timeout:
-    def __init__(self, seconds=TIMEOUT_DURATION, error_message="Timeout"):
+    def __init__(self, seconds=5, error_message="Timeout"):
         self.seconds = seconds
         self.error_message = error_message
-
-    def handle_timeout(self, signum, frame):
-        raise TimeoutError(self.error_message)
+        self.timer = None
 
     def __enter__(self):
-        signal.signal(signal.SIGALRM, self.handle_timeout)
-        signal.alarm(self.seconds)
+        self.timer = threading.Timer(self.seconds, self.raise_timeout)
+        self.timer.start()
+
+    def raise_timeout(self):
+        raise TimeoutError(self.error_message)
 
     def __exit__(self, type, value, traceback):
-        signal.alarm(0)
+        if self.timer:
+            self.timer.cancel()  # 取消计时器
 
 
 def delete_files_in_folder(folder_path):

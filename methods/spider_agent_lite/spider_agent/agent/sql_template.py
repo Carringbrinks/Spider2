@@ -227,3 +227,62 @@ output_path = "{output_path}"# Path to save the output as a CSV or "directly"
 
 execute_sql(file_path, command, output_path)
 """
+
+GET_TABLE_INFO_TEMPLATE = """
+import os
+import json
+
+def get_table_info(database_table_name, workdir):
+    # database_table_name = json.loads(database_table_name)
+    database_names = list(database_table_name.keys())
+    table_names = list(database_table_name.values())
+    table_infos = []
+    for database_name, table_name in zip(database_names, table_names):
+        table_path = os.path.join(workdir, database_name, table_name + ".json")
+        if not os.path.exists(table_path):
+            table_path = os.path.join(workdir, database_name.replace(".", "/"), table_name + ".json")
+            if not os.path.exists(table_path):
+                return f"The table path: {{table_path}} does not exist, please select the relevant database and table again."
+        with open(table_path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            table_infos.append(str(data))
+    return "The table information related to the task is as follows:" + "\\n" + "\\n".join(table_infos)
+    
+database_table_name = {database_table_name}
+workdir = "{work_dir}"
+print(get_table_info(database_table_name, workdir))
+"""
+import json
+
+
+def get_table_info(database_table_name, workdir):
+    # database_table_name = json.loads(database_table_name)
+    database_names = list(database_table_name.keys())
+    table_names = list(database_table_name.values())
+    table_infos = []
+    for database_name, table_name in zip(database_names, table_names):
+        table_path = os.path.join(workdir, database_name, table_name + ".json")
+        if not os.path.exists(table_path):
+            table_path = os.path.join(workdir, database_name.replace(".", "/"), table_name + ".json")
+            if not os.path.exists(table_path):
+                return f"The table path: {{table_path}} does not exist, please select the relevant database and table again."
+        with open(table_path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            table_infos.append(str(data))
+    return "The table information related to the task is as follows:" + "\\n" + "\\n".join(table_infos)
+
+
+# database_table_name = {database_table_name}
+# workdir = "{work_dir}"
+# print(get_table_info(database_table_name, workdir))
+
+
+if __name__ == '__main__':
+    import os
+    # md, csv = get_ddl_file_path(r"F:\PythonPro\Spider2\methods\spider_agent_lite\examples\bq010")
+    # print(md.keys())
+    # print(csv.keys())
+    database_table_name = '{"bigquery-public-data.google_analytics_sample":"ga_sessions_20160801"}'
+    workdir = r"F:\PythonPro\Spider2\methods\spider_agent_lite\examples\bq001\ga360"
+    # print(get_table_info(database_table_name, workdir))
+

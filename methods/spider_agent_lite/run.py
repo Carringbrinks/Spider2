@@ -1,17 +1,14 @@
 import argparse
 import datetime
+import glob
 import json
 import logging
 import os
-import random
+import shutil
 import sys
-import glob
 
-from tqdm import tqdm
-
-from spider_agent.envs.spider_agent import Spider_Agent_Env
 from spider_agent.agent.agents import PromptAgent
-
+from spider_agent.envs.spider_agent import Spider_Agent_Env
 
 #  Logger Configs {{{ #
 logger = logging.getLogger("spider_agent")
@@ -52,10 +49,10 @@ def config() -> argparse.Namespace:
         description="Run end-to-end evaluation on the benchmark"
     )
     
-    parser.add_argument("--max_steps", type=int, default=20)
+    parser.add_argument("--max_steps", type=int, default=15)
     
     parser.add_argument("--max_memory_length", type=int, default=25)
-    parser.add_argument("--suffix", '-s', type=str, default="gpt-4-try1")
+    parser.add_argument("--suffix", '-s', type=str, default="test1")
     
     parser.add_argument("--model", type=str, default="gpt-4o")
     parser.add_argument("--temperature", type=float, default=0.5)
@@ -71,7 +68,7 @@ def config() -> argparse.Namespace:
     parser.add_argument("--retry_failed", action="store_true", default=False)
 
     # output related
-    parser.add_argument("--output_dir", type=str, default="output")
+    parser.add_argument("--output_dir", type=str, default="output_test")
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--bq_only", action="store_true")
     parser.add_argument("--local_only", action="store_true")
@@ -85,7 +82,7 @@ def config() -> argparse.Namespace:
 
 
 
-def test(
+def main(
     args: argparse.Namespace,
     test_all_meta: dict = None
 ) -> None:
@@ -124,7 +121,7 @@ def test(
     valid_ids = []
     ## load task configs
     assert os.path.exists(args.test_path) and args.test_path.endswith(".jsonl"), f"Invalid test_path, must be a valid jsonl file: {args.test_path}"
-    with open(args.test_path, "r") as f:
+    with open(args.test_path, "r", encoding="utf-8") as f:
         task_configs = [json.loads(line) for line in f]
 
         
@@ -187,7 +184,8 @@ def test(
             logger.info("Retrying %s", instance_id)
 
         if os.path.exists(output_dir):
-            os.system(f"rm -rf {output_dir}")
+            # os.system(f"rm -rf {output_dir}")
+            shutil.rmtree(output_dir)
             logger.info("Removed existing %s", output_dir)
 
         os.makedirs(output_dir, exist_ok=True)
@@ -238,4 +236,4 @@ def test(
 if __name__ == '__main__':
     args = config()
     
-    test(args)
+    main(args)

@@ -1,14 +1,24 @@
-import json
 import logging
-import random
-from typing import Any, Dict, Optional
+from typing import Optional
 import docker
-import requests
 import os
 import ast
-import tempfile
 import platform
-from spider_agent.agent.sql_template import LOCAL_SQL_TEMPLATE, BQ_GET_TABLES_TEMPLATE, BQ_GET_TABLE_INFO_TEMPLATE, BQ_SAMPLE_ROWS_TEMPLATE, BQ_EXEC_SQL_QUERY_TEMPLATE, SF_EXEC_SQL_QUERY_TEMPLATE
+from methods.spider_agent_lite.spider_agent.agent.sql_template import LOCAL_SQL_TEMPLATE, BQ_GET_TABLES_TEMPLATE, \
+    BQ_GET_TABLE_INFO_TEMPLATE, BQ_SAMPLE_ROWS_TEMPLATE, BQ_EXEC_SQL_QUERY_TEMPLATE, SF_EXEC_SQL_QUERY_TEMPLATE, \
+    GET_TABLE_INFO_TEMPLATE
+import ast
+import logging
+import os
+import platform
+from typing import Optional
+
+import docker
+
+from methods.spider_agent_lite.spider_agent.agent.sql_template import LOCAL_SQL_TEMPLATE, BQ_GET_TABLES_TEMPLATE, \
+    BQ_GET_TABLE_INFO_TEMPLATE, BQ_SAMPLE_ROWS_TEMPLATE, BQ_EXEC_SQL_QUERY_TEMPLATE, SF_EXEC_SQL_QUERY_TEMPLATE, \
+    GET_TABLE_INFO_TEMPLATE
+
 logger = logging.getLogger("spider_agent.pycontroller")
 
 
@@ -173,6 +183,15 @@ class PythonController:
         self.execute_command(f"rm {temp_file_path}")
         if observation.startswith(f'File "{temp_file_path}"'):
             observation = observation.split("\n", 1)[1]
+        return observation
+
+    def execute_select_table(self, action):
+        database_table_name= action.database_table_name
+        script_content = GET_TABLE_INFO_TEMPLATE.format(
+            database_table_name=database_table_name, work_dir=self.work_dir)
+        temp_file_path = "temp_get_info_script.py"
+        observation = self.execute_python_file(temp_file_path, script_content)
+        # self.execute_command(f"rm {temp_file_path}")
         return observation
 
     def execute_bq_sample_rows(self, action):

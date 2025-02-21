@@ -1,23 +1,23 @@
+import docker
 import logging
-import os
-import subprocess
-import tempfile
-import time
-from typing import Callable, Any, Optional, Tuple
-
-from typing import List, Dict, Union
-from docker.models.containers import Container
-from docker.client import DockerClient
-from docker.errors import ImageNotFound
-import gymnasium as gym
-import shutil, pathlib, docker, time, copy
-from spider_agent.controllers.python import PythonController
-from spider_agent.controllers.setup import SetupController
-from spider_agent.envs.utils import *
-from spider_agent import configs
-from spider_agent.agent.action import Action, Bash, Terminate, CreateFile, EditFile, LOCAL_DB_SQL, BIGQUERY_EXEC_SQL, BQ_GET_TABLES, BQ_GET_TABLE_INFO, BQ_SAMPLE_ROWS, SNOWFLAKE_EXEC_SQL
+import pathlib
 import signal
 import sys
+import time
+from typing import Callable, Any
+from typing import Dict, Union
+
+import gymnasium as gym
+from docker.client import DockerClient
+from docker.errors import ImageNotFound
+from docker.models.containers import Container
+
+from methods.spider_agent_lite.spider_agent import configs
+from methods.spider_agent_lite.spider_agent.agent.action import Action, Bash, Terminate, CreateFile, EditFile, \
+    LOCAL_DB_SQL, BIGQUERY_EXEC_SQL, BQ_GET_TABLES, BQ_GET_TABLE_INFO, BQ_SAMPLE_ROWS, SNOWFLAKE_EXEC_SQL, SelectTable
+from methods.spider_agent_lite.spider_agent.controllers.python import PythonController
+from methods.spider_agent_lite.spider_agent.controllers.setup import SetupController
+from methods.spider_agent_lite.spider_agent.envs.utils import *
 
 logger = logging.getLogger("spider_agent.env")
 
@@ -206,6 +206,8 @@ class Spider_Agent_Env(gym.Env):
                 done = False
                 if isinstance(action, Bash):
                     observation = self.execute_code_action(action)
+                elif isinstance(action, SelectTable):
+                    observation = self.execute_select_table_action(action)
                 elif isinstance(action, BQ_GET_TABLES):
                     observation = self.controller.execute_bq_get_tables(action)
                 elif isinstance(action, BQ_GET_TABLE_INFO):
@@ -290,5 +292,10 @@ class Spider_Agent_Env(gym.Env):
         if obs is None or obs == '':
             obs = f"SQL command executed successfully. No output."
         
+        return obs
+
+    # TODO
+    def execute_select_table_action(self, action: SelectTable):
+        obs =  self.controller.execute_select_table(action)
         return obs
     

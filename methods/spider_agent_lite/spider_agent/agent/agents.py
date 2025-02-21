@@ -1,26 +1,44 @@
-import base64
-import json
+import logging
 import logging
 import os
+import platform
 import re
-import time
-import uuid
-from http import HTTPStatus
-from io import BytesIO
 from typing import Dict, List
-from spider_agent.agent.prompts import BIGQUERY_SYSTEM, LOCAL_SYSTEM, DBT_SYSTEM, SNOWFLAKE_SYSTEM, REFERENCE_PLAN_SYSTEM
-from spider_agent.agent.action import Action, Bash, Terminate, CreateFile, EditFile, LOCAL_DB_SQL, BIGQUERY_EXEC_SQL, SNOWFLAKE_EXEC_SQL, BQ_GET_TABLES, BQ_GET_TABLE_INFO, BQ_SAMPLE_ROWS
-from spider_agent.envs.spider_agent import Spider_Agent_Env
-from spider_agent.agent.models import call_llm
 
-
-from openai import AzureOpenAI
-from typing import Dict, List, Optional, Tuple, Any, TypedDict
-
-
-
+from methods.spider_agent_lite.spider_agent.agent.action import Action, Bash, Terminate, CreateFile, EditFile, \
+    LOCAL_DB_SQL, BIGQUERY_EXEC_SQL, SNOWFLAKE_EXEC_SQL, SelectTable
+from methods.spider_agent_lite.spider_agent.agent.models import call_llm
+from methods.spider_agent_lite.spider_agent.agent.prompts import LOCAL_SYSTEM, DBT_SYSTEM, REFERENCE_PLAN_SYSTEM, \
+    BIGQUERY_SYSTEM_ZH, SNOWFLAKE_SYSTEM_ZH, DDL_TEMPLATE
+from methods.spider_agent_lite.spider_agent.envs.spider_agent import Spider_Agent_Env
 
 logger = logging.getLogger("spider_agent")
+
+def get_ddl_file_path(work_dir):
+    sub_directory = os.listdir(work_dir)
+    if not sub_directory:
+        return {}, {}
+
+    md_content = {}
+    csv_content = {}
+
+    for unknow_path in sub_directory:
+        full_path = os.path.join(work_dir, unknow_path)
+
+        if os.path.isfile(full_path):
+            if unknow_path.endswith(".md"):
+                with open(full_path, "r", encoding="utf-8") as file_md:
+                    md_content[full_path] = file_md.read()
+
+            elif unknow_path.endswith(".csv"):
+                with open(full_path, "r", encoding="utf-8") as file_csv:
+                    csv_content[full_path] = file_csv.read()
+        elif os.path.isdir(full_path):
+            sub_md, sub_csv = get_ddl_file_path(full_path)
+            md_content.update(sub_md)
+            csv_content.update(sub_csv)
+
+    return md_content, csv_content
 
 
 class PromptAgent:
@@ -52,7 +70,8 @@ class PromptAgent:
         self.codes = []
         self.work_dir = "/workspace"
         self.use_plan = use_plan
-        
+
+    # TODO: ADD ACTION SPACE
     def set_env_and_task(self, env: Spider_Agent_Env):
         self.env = env
         self.thoughts = []
@@ -63,14 +82,43 @@ class PromptAgent:
         self.history_messages = []
         self.instruction = self.env.task_config['question']
 
+        database_dir = self.env.task_config["config"][0]["parameters"]["dirs"][0]
+        # if self.env.task_config['type'] == 'Bigquery':
+        #     self._AVAILABLE_ACTION_CLASSES = [Bash, Terminate, BIGQUERY_EXEC_SQL, CreateFile, EditFile]
+        #     action_space = "".join([action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])
+        #     self.system_message = BIGQUERY_SYSTEM.format(work_dir=self.work_dir, action_space=action_space, task=self.instruction, max_steps=self.max_steps)
+        # elif self.env.task_config['type'] == 'Snowflake':
+        #     self._AVAILABLE_ACTION_CLASSES = [Bash, Terminate, SNOWFLAKE_EXEC_SQL, CreateFile, EditFile]
+        #     action_space = "".join([action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])
+        #     self.system_message = SNOWFLAKE_SYSTEM.format(work_dir=self.work_dir, action_space=action_space, task=self.instruction, max_steps=self.max_steps)
         if self.env.task_config['type'] == 'Bigquery':
-            self._AVAILABLE_ACTION_CLASSES = [Bash, Terminate, BIGQUERY_EXEC_SQL, CreateFile, EditFile]
-            action_space = "".join([action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])
-            self.system_message = BIGQUERY_SYSTEM.format(work_dir=self.work_dir, action_space=action_space, task=self.instruction, max_steps=self.max_steps)
+            ddl_info = []
+            database_md, ddl_csv = get_ddl_file_path(database_dir)
+            for key, value in ddl_csv.items():
+                ddl_info.append(DDL_TEMPLATE.format(database=key.split("\\")[-2], ddl=value))
+            self._AVAILABLE_ACTION_CLASSES = [SelectTable, Terminate, BIGQUERY_EXEC_SQL, CreateFile, EditFile]
+            action_space = "".join(
+                [action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])
+            self.system_message = BIGQUERY_SYSTEM_ZH.format(work_dir=self.work_dir, action_space=action_space,
+                                                            DescriptionMd = list(database_md.values())[0] if database_md else "", DDL="\n".join(ddl_info),
+                                                         task=self.instruction, max_steps=self.max_steps)
         elif self.env.task_config['type'] == 'Snowflake':
-            self._AVAILABLE_ACTION_CLASSES = [Bash, Terminate, SNOWFLAKE_EXEC_SQL, CreateFile, EditFile]
-            action_space = "".join([action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])
-            self.system_message = SNOWFLAKE_SYSTEM.format(work_dir=self.work_dir, action_space=action_space, task=self.instruction, max_steps=self.max_steps)
+            ddl_info = []
+            database_md, ddl_csv = get_ddl_file_path(database_dir)
+            if platform.system() == 'Windows':
+                ddl_csv = {key.replace(database_dir + "\\", "").replace("\\DDL.csv", ""): value for key, value in
+                           ddl_csv.items()}
+            else:
+                ddl_csv = {key.replace(database_dir + "/", "").replace("/DDL.csv", ""): value for key, value in
+                           ddl_csv.items()}
+            for key, value in ddl_csv.items():
+                ddl_info.append( DDL_TEMPLATE.format(database=key, ddl=value))
+            self._AVAILABLE_ACTION_CLASSES = [SelectTable, Terminate, SNOWFLAKE_EXEC_SQL, CreateFile, EditFile]
+            action_space = "".join(
+                [action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])
+            self.system_message = SNOWFLAKE_SYSTEM_ZH.format(work_dir=self.work_dir, action_space=action_space,
+                                                             DescriptionMd=list(database_md.values())[0] if database_md else "", DDL="\n".join(ddl_info),
+                                                          task=self.instruction, max_steps=self.max_steps)
         elif self.env.task_config['type'] == 'Local':
             self._AVAILABLE_ACTION_CLASSES = [Bash, Terminate, CreateFile, EditFile, LOCAL_DB_SQL]
             action_space = "".join([action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])
@@ -218,7 +266,7 @@ class PromptAgent:
         result = ""
         done = False
         step_idx = 0
-        obs = "You are in the folder now."
+        obs = "Please start answering."
         retry_count = 0
         last_action = None
         repeat_action = False

@@ -1,8 +1,7 @@
-import os
-import json
-import shutil
-import zipfile
 import argparse
+import json
+import os
+import shutil
 
 JSONL_PATH = '../../spider2-lite/spider2-lite.jsonl'
 DATABASE_PATH_BQ = '../../spider2-lite/resource/databases/bigquery/'
@@ -84,7 +83,7 @@ def setup_add_schema(args):
 
 def add_agent_setting():
 
-    with open(JSONL_PATH, "r") as f:
+    with open(JSONL_PATH, "r", encoding="utf-8") as f:
         examples = [json.loads(line) for line in f]
 
     agent_dir_path = os.path.join('./','examples')

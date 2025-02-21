@@ -1,8 +1,9 @@
 #coding=utf8
 import re
-from dataclasses import dataclass, field
-from typing import Optional, Any, Union, List, Dict
 from abc import ABC
+from dataclasses import dataclass, field
+from typing import Optional, Any
+
 
 def remove_quote(text: str) -> str:
     """ 
@@ -38,6 +39,38 @@ Observation: the observation space of this action type.
     @classmethod
     def parse_action_from_text(cls, text: str) -> Optional[Any]:
         raise NotImplementedError
+
+@dataclass
+class SelectTable(Action):
+    action_type: str = field(default="select_tables", init=False, repr=False,
+                             metadata={"help": 'type of action, c.f., "select_tables"'})
+
+    database_table_name: dict = field(metadata={"help": 'Database name and table name'})
+
+
+    @classmethod
+    def get_action_description(cls) -> str:
+        return """
+## SelectTable Action
+* Signature: SelectTable(database_table_name="your_database_name")
+* Description: Select the database table associated with the task
+* Examples:
+  - Example1: SelectTable(database_table_name={"bigquery-public-data": "new_york"})
+  - Example1: SelectTable(database_table_name={"PATENTS.PATENTS": "CPC_DEFINITION"})
+"""
+
+    @classmethod
+    def parse_action_from_text(cls, text: str) -> Optional[Action]:
+        matches = re.findall(r'SelectTable\(database_table_name=(\{.*?\})\)', text, flags=re.DOTALL)
+
+        if matches:
+            database_name = matches[-1]
+            return cls(database_table_name=remove_quote(database_name))
+        return None
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(database_table_name={self.database_table_name})'
+
 
 @dataclass
 class Bash(Action):
@@ -342,8 +375,8 @@ class BQ_GET_TABLES(Action):
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(database_name="{self.database_name}", dataset_name="{self.dataset_name}", save_path="{self.save_path}")'
-    
-    
+
+
 @dataclass
 class BQ_GET_TABLE_INFO(Action):
 
@@ -457,3 +490,8 @@ class Terminate(Action):
         return None
     
 
+if __name__ == '__main__':
+    text = """Action: SelectTable(database_table_name={"DEPS_DEV_V1.DEPS_DEV_V1": "PYPI_PACKAGE_METADATA"})"""
+
+    action = SelectTable.parse_action_from_text(text)
+    print(action.database_table_name)

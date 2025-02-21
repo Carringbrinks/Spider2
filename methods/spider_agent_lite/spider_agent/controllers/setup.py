@@ -1,17 +1,13 @@
-import json
-import os
-
-
-import shutil
 import logging
-from typing import Any, Union, Optional
-from typing import Dict, List
-import uuid
-import requests
-import docker
+import os
 import shutil
-from spider_agent import configs
+import uuid
+from typing import Any
+from typing import Dict, List
 
+import requests
+
+from methods.spider_agent_lite.spider_agent import configs
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger("spider_agent.setup")

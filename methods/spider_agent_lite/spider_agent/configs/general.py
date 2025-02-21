@@ -1,8 +1,7 @@
 #coding=utf8
-from typing import Dict, List
-from typing import Any, Union, Optional
-import shutil
 import os
+import shutil
+from typing import Dict, List
 
 
 def download_and_execute_setup(controller, url: str, path: str = '/home/user/init.sh'):
