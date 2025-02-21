@@ -94,8 +94,12 @@ class PromptAgent:
         if self.env.task_config['type'] == 'Bigquery':
             ddl_info = []
             database_md, ddl_csv = get_ddl_file_path(database_dir)
+            
             for key, value in ddl_csv.items():
-                ddl_info.append(DDL_TEMPLATE.format(database=key.split("\\")[-2], ddl=value))
+                if platform.system() == "Windows":
+                    ddl_info.append(DDL_TEMPLATE.format(database=key.split("\\")[-2], ddl=value))
+                else:
+                    ddl_info.append(DDL_TEMPLATE.format(database=key.split("/")[-2], ddl=value))
             self._AVAILABLE_ACTION_CLASSES = [SelectTable, Terminate, BIGQUERY_EXEC_SQL, CreateFile, EditFile]
             action_space = "".join(
                 [action_cls.get_action_description() for action_cls in self._AVAILABLE_ACTION_CLASSES])
